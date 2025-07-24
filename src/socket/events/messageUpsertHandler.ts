@@ -126,7 +126,7 @@ const eventHandler = (socket: SorenSocketType) => async (listener: BaileysEventM
      * ***Becareful if remoteJid is undefined that means messageArea variable also return undefined
      */
     if (!messageObject.key.remoteJid || !messageArea) {
-        throw new GeneralError(`Cannot define message area value. found undefined`);
+        throw new GeneralError(`Probably remoteJid is undefined. Cannot define message area value`);
     }
 
     /** When registered prefix is not match with prefix received */
