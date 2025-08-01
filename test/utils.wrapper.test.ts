@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { eventWrapper } from "../src/utils/wrapper";
 import { BaileysEventMap } from "baileys";
 
-test("event wrapper function", async (t) => {
+test("test/utils.wrapper.test.ts", async (t) => {
     const mockListener = {
         mock: true,
     } as unknown as BaileysEventMap[keyof BaileysEventMap];

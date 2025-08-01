@@ -4,7 +4,7 @@ import { errorHandler } from "../src/utils/errorHandler";
 import { BaseError } from "../src/lib/errors/BaseError";
 import { BaseErrorOptions } from "../src/types/types";
 
-test("error handler function", async (t) => {
+test("test/error-handler.test.ts", async (t) => {
     let called: string;
 
     class TestError extends BaseError {
