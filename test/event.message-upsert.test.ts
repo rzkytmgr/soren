@@ -225,5 +225,251 @@ test("test/event.message-upsert.test.ts", async (t) => {
     });
 
     await t.test("access control", async (t) => {
+        const socketMock = {
+            config: {
+                SOREN_BOT_OWNER: "1234567890",
+                SOREN_COMMAND_PREFIX: ["/"],
+            },
+            commands: commandsMock,
+            groupMetadata() {
+                return {
+                    participants: [{
+                        id: "member@s.whatsapp.net",
+                        admin: null,
+                    }, {
+                        id: "admin@s.whatsapp.net",
+                        admin: "admin",
+                    }, {
+                        id: "superadmin@s.whatsapp.net",
+                        admin: "superadmin",
+                    }],
+                };
+            },
+        } as unknown as SorenSocketType;
+
+        await t.test("testing based on area", async () => {
+            commandsMock.set("ping", {
+                commandArea: [
+                    MessageArea.PersonalMessage,
+                ],
+                commandRoles: [
+                    MessageRoles.BotOwner,
+                ],
+                commandMessageType: [
+                    MessageType.TextMessage,
+                ],
+            } as SorenCommandMeta);
+
+            // 1. Personal Message -> Allowed Personal Message (Success)
+            await assert.doesNotReject(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "1234567890@s.whatsapp.net", // personal message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+
+            // 2. Group Message -> Allowed Personal Message (Error)
+            await assert.rejects(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "1234567890@g.us", // group message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+
+            // 3. Group Message -> Allowed Group Message (Success)
+            commandsMock.set("ping", {
+                commandArea: [
+                    MessageArea.GroupMessage, // allowed group message
+                ],
+                commandRoles: [
+                    MessageRoles.GroupMember,
+                ],
+                commandMessageType: [
+                    MessageType.TextMessage,
+                ],
+            } as SorenCommandMeta);
+
+            await assert.doesNotReject(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "group@g.us", // group message
+                            participant: "member@s.whatsapp.net",
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+
+            // 4. Personal Message -> Allowed Group Message (Error)
+            await assert.rejects(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "personal@s.whatsapp.net", // personal message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+
+            // 5. Personal Message -> Allowed Personal Message and Group Message (Success)
+            commandsMock.set("ping", {
+                commandArea: [
+                    MessageArea.GroupMessage, // allowed group message
+                    MessageArea.PersonalMessage, // allowed personal message too
+                ],
+                commandRoles: [
+                    MessageRoles.GroupMember,
+                    MessageRoles.Personal,
+                ],
+                commandMessageType: [
+                    MessageType.TextMessage,
+                ],
+            } as SorenCommandMeta);
+
+            await assert.doesNotReject(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "group@g.us", // group message
+                            participant: "member@s.whatsapp.net",
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+
+            // 6. Group Message -> Allowed Personal Message and Group Message (Success)
+            await assert.doesNotReject(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "message@s.whatsapp.net", // personal message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+        });
+
+        await t.test("testing based on role", async () => {
+            // 1. Bot owner
+            // 2. Group owner
+            // 3. Group admin
+            // 4. Group Member
+            // 5. Personal Message
+            // 6. Multiple role
+            // 7. general (all roles)
+
+            // 1. Bot owner only
+            commandsMock.set("ping", {
+                commandArea: [
+                    MessageArea.PersonalMessage,
+                ],
+                commandRoles: [
+                    MessageRoles.BotOwner,
+                ],
+                commandMessageType: [
+                    MessageType.TextMessage,
+                ],
+            } as SorenCommandMeta);
+            // 1.1 Bot Owner Request (success)
+            await assert.doesNotReject(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "1234567890@s.whatsapp.net", // personal message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+            // 1.2 Not Bot Owner Request (Error)
+            await assert.rejects(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "other@s.whatsapp.net", // personal message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+
+            // 2. Group Owner only
+            commandsMock.set("ping", {
+                commandArea: [
+                    MessageArea.GroupMessage,
+                ],
+                commandRoles: [
+                    MessageRoles.GroupOwner,
+                ],
+                commandMessageType: [
+                    MessageType.TextMessage,
+                ],
+            } as SorenCommandMeta);
+            // 2.2 Group Owner Request (success)
+            await assert.doesNotReject(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "group@g.us", // group message
+                            participant: "superadmin@s.whatsapp.net", // group owner
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+            // 2.2 Not Group Owner Request (Error)
+            await assert.rejects(
+                eventHandler(socketMock)({
+                    messages: [{
+                        message: {
+                            conversation: "/ping",
+                        },
+                        key: {
+                            remoteJid: "other@s.whatsapp.net", // personal message
+                        },
+                    }],
+                    type: "notify",
+                }),
+            );
+        });
     });
 });
