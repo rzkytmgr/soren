@@ -1,4 +1,0 @@
-#!/bin/sh
-pnpm format
-pnpm test
-pnpm build
